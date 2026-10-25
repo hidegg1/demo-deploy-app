@@ -1,0 +1,44 @@
+# Ruby のベースイメージを指定
+FROM ruby:3.4.8
+
+# 環境変数の設定
+# 日本語対応
+ENV LANG=C.UTF-8
+# タイムゾーンを日本に設定
+ENV TZ=Asia/Tokyo
+
+# Node.js と Yarn の「入手先（リポジトリ）」を apt に登録する
+# Debian 標準の apt では Node.js が古く、Yarn は提供されていないため、
+# 公式の配布元を apt に追加してから、次の RUN でインストールする。
+# 配布元の追加は「① 本物かを確かめる鍵を置く → ② 入手先を登録する」の 2 段階で行う。
+RUN apt-get update -qq \
+# 鍵や URL を扱うための道具を入れる（HTTPS 証明書 / ダウンロード / 鍵の変換）
+&& apt-get install -y ca-certificates curl gnupg \
+# 鍵の置き場所を作る
+&& mkdir -p /etc/apt/keyrings \
+# 【Node.js】① 公開鍵をダウンロードし、apt が読める形式に変換して保存
+&& curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+&& NODE_MAJOR=24 \
+# 【Node.js】② 入手先を登録。signed-by で「この鍵で署名されたものだけ信用する」と指定
+&& echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
+# 【Yarn】① 公開鍵を保存（Node.js と同じ方式。旧来の apt-key は新しい Debian で削除済み）
+&& curl -fsSL https://dl.yarnpkg.com/debian/pubkey.gpg | gpg --dearmor -o /etc/apt/keyrings/yarn.gpg \
+# 【Yarn】② 入手先を登録
+&& echo "deb [signed-by=/etc/apt/keyrings/yarn.gpg] https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list
+
+# 実際のインストール。update で追加した入手先の一覧を読み込み直してから入れる
+#   build-essential: gem のネイティブ拡張をコンパイルする C コンパイラ等
+#   libpq-dev:       PostgreSQL に接続する pg gem のビルドに必要
+#   nodejs / yarn:   Rails の JavaScript / CSS のビルドに使う
+#   vim:             コンテナ内でファイルを編集するためのエディタ
+RUN apt-get update -qq && apt-get install -y build-essential libpq-dev nodejs yarn vim
+
+# アプリケーションディレクトリの作成
+RUN mkdir /myapp
+WORKDIR /myapp
+
+# Bundlerのインストール
+RUN gem install bundler
+
+# アプリケーションのコードをコピー
+COPY . /myapp
