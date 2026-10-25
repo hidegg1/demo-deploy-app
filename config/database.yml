@@ -12,12 +12,26 @@
 # Configure Using Gemfile
 # gem "pg"
 #
+# デフォルト設定（共通設定）
 default: &default
   adapter: postgresql
   encoding: unicode
   # For details on connection pooling, see Rails configuration guide
-  # https://guides.rubyonrails.org/configuring.html#database-pooling
-  max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  # <https://guides.rubyonrails.org/configuring.html#database-pooling>
+  # 【pool とは】
+  #   DB接続を使い回すための「接続の置き場（コネクションプール）」の上限数。
+  #   リクエストのたびにDBへ接続し直すと遅いので、あらかじめ接続を確保して使い回す。
+  #   Puma（Webサーバ）はスレッドごとに1本DB接続を使うため、
+  #   スレッド数（RAILS_MAX_THREADS）と同じ数にしておくのが基本。
+  #   少なすぎると「接続待ちでタイムアウト（ActiveRecord::ConnectionTimeoutError）」になる。
+  #   ENV.fetch("RAILS_MAX_THREADS") { 5 } = 環境変数があればその値、なければ 5。
+  #   ※ Neon（本番）は無料枠だと同時接続数に上限があるので、本番ではこの値に注意。
+  #   ※ Rails 8.1 以降は `pool` の新しい名前が `max_connections`（ファイル上部の default 参照）。
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  host: db # compose.ymlで定義したサービス名
+  username: postgres # 接続ユーザー名
+  password: password #接続パスワード（database.yml のパスワードと一致
+  
 
 
 development:
@@ -102,22 +116,3 @@ production:
     <<: *primary_production
     database: myapp_production_cable
     migrations_paths: db/cable_migrate
-# デフォルト設定（共通設定）
-default: &default
-  adapter: postgresql
-  encoding: unicode
-  # For details on connection pooling, see Rails configuration guide
-  # <https://guides.rubyonrails.org/configuring.html#database-pooling>
-  # 【pool とは】
-  #   DB接続を使い回すための「接続の置き場（コネクションプール）」の上限数。
-  #   リクエストのたびにDBへ接続し直すと遅いので、あらかじめ接続を確保して使い回す。
-  #   Puma（Webサーバ）はスレッドごとに1本DB接続を使うため、
-  #   スレッド数（RAILS_MAX_THREADS）と同じ数にしておくのが基本。
-  #   少なすぎると「接続待ちでタイムアウト（ActiveRecord::ConnectionTimeoutError）」になる。
-  #   ENV.fetch("RAILS_MAX_THREADS") { 5 } = 環境変数があればその値、なければ 5。
-  #   ※ Neon（本番）は無料枠だと同時接続数に上限があるので、本番ではこの値に注意。
-  #   ※ Rails 8.1 以降は `pool` の新しい名前が `max_connections`（ファイル上部の default 参照）。
-  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
-  host: db # compose.ymlで定義したサービス名
-  username: postgres # 接続ユーザー名
-  password: password #接続パスワード（database.yml のパスワードと一致
